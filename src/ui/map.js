@@ -32,6 +32,7 @@ import type {LngLatBoundsLike} from '../geo/lng_lat_bounds';
 import type {RequestParameters} from '../util/ajax';
 import type {StyleOptions} from '../style/style';
 import type {MapEvent, MapDataEvent} from './events';
+import type {GPUTiming} from '../render/painter';
 
 import type ScrollZoomHandler from './handler/scroll_zoom';
 import type BoxZoomHandler from './handler/box_zoom';
@@ -83,7 +84,8 @@ type MapOptions = {
     pitch?: number,
     renderWorldCopies?: boolean,
     maxTileCacheSize?: number,
-    transformRequest?: RequestTransformFunction
+    transformRequest?: RequestTransformFunction,
+    gpuTiming?: GPUTiming
 };
 
 const defaultMinZoom = 0;
@@ -125,7 +127,8 @@ const defaultOptions = {
     maxTileCacheSize: null,
 
     transformRequest: null,
-    fadeDuration: 300
+    fadeDuration: 300,
+    gpuTiming: 'none'
 };
 
 /**
@@ -233,6 +236,7 @@ class Map extends Camera {
     _transformRequest: RequestTransformFunction;
     _maxTileCacheSize: number;
     _frameId: any;
+    _lastFrameId: any;
     _styleDirty: ?boolean;
     _sourcesDirty: ?boolean;
     _placementDirty: ?boolean;
@@ -246,6 +250,9 @@ class Map extends Camera {
     _fadeDuration: number;
     _crossFadingFactor: number;
     _collectResourceTiming: boolean;
+    _gpuTiming: GPUTiming;
+    _render: () => Map;
+    _renderInternal: () => Map;
 
     scrollZoom: ScrollZoomHandler;
     boxZoom: BoxZoomHandler;
@@ -273,6 +280,7 @@ class Map extends Camera {
         this._bearingSnap = options.bearingSnap;
         this._refreshExpiredTiles = options.refreshExpiredTiles;
         this._fadeDuration = options.fadeDuration;
+        this._gpuTiming = options.gpuTiming;
         this._crossFadingFactor = 1;
         this._collectResourceTiming = options.collectResourceTiming;
 
@@ -294,6 +302,14 @@ class Map extends Camera {
 
         if (options.maxBounds) {
             this.setMaxBounds(options.maxBounds);
+        }
+
+        if (options.gpuTiming === 'frame') {
+            this._renderInternal = this._render;
+            this._render = this._frameTimedRender;
+        } else if (options.gpuTiming === 'layer') {
+            this._renderInternal = this._render;
+            this._render = this._layerTimedRender;
         }
 
         util.bindAll([
@@ -1471,6 +1487,52 @@ class Map extends Camera {
         this._rerender();
     }
 
+    _frameTimedRender() {
+        const renderStart = window.performance.now();
+        const ext = this.painter.context.timerQueryExt;
+        const renderQuery = ext.createQueryEXT();
+        const renderFrameId = this._lastFrameId;
+        ext.beginQueryEXT(ext.TIME_ELAPSED_EXT, renderQuery);
+        this._renderInternal();
+        ext.endQueryEXT(ext.TIME_ELAPSED_EXT, renderQuery);
+        const renderCPUTime = window.performance.now() - renderStart;
+
+        setTimeout(() => {
+            const renderGPUTime = ext.getQueryObjectEXT(renderQuery, ext.QUERY_RESULT_EXT) / (1000 * 1000);
+            ext.deleteQueryEXT(renderQuery);
+            this.fire('frame-timing', {
+                frameId: renderFrameId,
+                cpuTime: renderCPUTime,
+                gpuTime: renderGPUTime
+            });
+        }, 50); // Wait 50ms to give time for all GPU calls to finish before querying
+
+        return this;
+    }
+
+    _layerTimedRender() {
+        const renderStart = browser.now();
+        const renderFrameId = this._lastFrameId;
+        this._renderInternal();
+        // Resetting the Painter's per-layer timing queries here allows us to isolate
+        // the queries to individual frames.
+        const frameLayerQueries = this.painter.resetLayerTimers();
+        const renderCPUTime = browser.now() - renderStart;
+
+        setTimeout(() => {
+            const renderedLayerTimes =
+                this.painter.queryAndClearLayerTimers(frameLayerQueries);
+
+            this.fire('frame-timing', {
+                frameId: renderFrameId,
+                frameCpuTime: renderCPUTime,
+                layerTimes: renderedLayerTimes
+            });
+        }, 50); // Wait 50ms to give time for all GPU calls to finish before querying
+
+        return this;
+    }
+
     /**
      * Call when a (re-)render of the map is required:
      * - The style has changed (`setPaintProperty()`, etc.)
@@ -1528,7 +1590,8 @@ class Map extends Camera {
             showOverdrawInspector: this._showOverdrawInspector,
             rotating: this.rotating,
             zooming: this.zooming,
-            fadeDuration: this._fadeDuration
+            fadeDuration: this._fadeDuration,
+            gpuTiming: this._gpuTiming
         });
 
         this.fire('render');
@@ -1584,6 +1647,7 @@ class Map extends Camera {
     _rerender() {
         if (this.style && !this._frameId) {
             this._frameId = browser.frame(() => {
+                this._lastFrameId = this._frameId;
                 this._frameId = null;
                 this._render();
             });
