@@ -1,6 +1,6 @@
 // @flow
 
-const util = require('../../util/util');
+import util from '../../util/util';
 
 import type Map from '../map';
 
@@ -83,4 +83,4 @@ class DoubleClickZoomHandler {
     }
 }
 
-module.exports = DoubleClickZoomHandler;
+export default DoubleClickZoomHandler;

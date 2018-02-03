@@ -28,4 +28,5 @@ register(require('./benchmarks/filter_evaluate'));
 
 // Ensure the global worker pool is never drained. Browsers have resource limits
 // on the max number of workers that can be created per page.
-require('../src/util/global_worker_pool')().acquire(-1);
+import getWorkerPool from '../src/util/global_worker_pool';
+getWorkerPool().acquire(-1);

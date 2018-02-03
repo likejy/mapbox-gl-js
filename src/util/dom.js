@@ -1,16 +1,17 @@
 // @flow
 
-const Point = require('@mapbox/point-geometry');
-const window = require('./window');
+import Point from '@mapbox/point-geometry';
 
-exports.create = function (tagName: *, className?: string, container?: HTMLElement) {
+import window from './window';
+
+export const create = function (tagName: *, className?: string, container?: HTMLElement) {
     const el = window.document.createElement(tagName);
     if (className) el.className = className;
     if (container) container.appendChild(el);
     return el;
 };
 
-exports.createNS = function (namespaceURI: string, tagName: string) {
+export const createNS = function (namespaceURI: string, tagName: string) {
     const el = window.document.createElementNS(namespaceURI, tagName);
     return el;
 };
@@ -28,20 +29,23 @@ function testProp(props) {
 
 const selectProp = testProp(['userSelect', 'MozUserSelect', 'WebkitUserSelect', 'msUserSelect']);
 let userSelect;
-exports.disableDrag = function () {
+
+export const disableDrag = function () {
     if (selectProp) {
         userSelect = docStyle[selectProp];
         docStyle[selectProp] = 'none';
     }
 };
-exports.enableDrag = function () {
+
+export const enableDrag = function () {
     if (selectProp) {
         docStyle[selectProp] = userSelect;
     }
 };
 
 const transformProp = testProp(['transform', 'WebkitTransform']);
-exports.setTransform = function(el: HTMLElement, value: string) {
+
+export const setTransform = function(el: HTMLElement, value: string) {
     (el.style: any)[transformProp] = value;
 };
 
@@ -52,14 +56,14 @@ const suppressClick: MouseEventListener = function (e) {
     window.removeEventListener('click', suppressClick, true);
 };
 
-exports.suppressClick = function() {
+export const suppressClick = function() {
     window.addEventListener('click', suppressClick, true);
     window.setTimeout(() => {
         window.removeEventListener('click', suppressClick, true);
     }, 0);
 };
 
-exports.mousePos = function (el: HTMLElement, e: any) {
+export const mousePos = function (el: HTMLElement, e: any) {
     const rect = el.getBoundingClientRect();
     e = e.touches ? e.touches[0] : e;
     return new Point(
@@ -68,7 +72,7 @@ exports.mousePos = function (el: HTMLElement, e: any) {
     );
 };
 
-exports.touchPos = function (el: HTMLElement, e: any) {
+export const touchPos = function (el: HTMLElement, e: any) {
     const rect = el.getBoundingClientRect(),
         points = [];
     const touches = (e.type === 'touchend') ? e.changedTouches : e.touches;
@@ -81,7 +85,7 @@ exports.touchPos = function (el: HTMLElement, e: any) {
     return points;
 };
 
-exports.remove = function(node: HTMLElement) {
+export const remove = function(node: HTMLElement) {
     if (node.parentNode) {
         node.parentNode.removeChild(node);
     }

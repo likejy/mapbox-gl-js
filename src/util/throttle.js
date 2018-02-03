@@ -5,7 +5,7 @@
  Throttle the given function to run at most every period milliseconds.
  * @private
  */
-module.exports = function throttle(fn: () => void, time: number): () => number {
+export default function throttle(fn: () => void, time: number): () => number {
     let pending = false;
     let timerId = 0;
 
