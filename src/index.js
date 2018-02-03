@@ -19,7 +19,6 @@ import Point from '@mapbox/point-geometry';
 import Evented from './util/evented';
 import config from './util/config';
 import {setRTLTextPlugin} from './source/rtl_text_plugin';
-import createWorker from './source/worker';
 
 const exported = {
     version,
@@ -55,9 +54,7 @@ const exported = {
 
     set accessToken(token: string) {
         config.ACCESS_TOKEN = token;
-    },
-
-    _createWorker: createWorker
+    }
 };
 
 /**
