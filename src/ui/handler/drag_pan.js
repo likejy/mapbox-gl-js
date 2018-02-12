@@ -2,7 +2,7 @@
 
 import DOM from '../../util/dom';
 
-import util from '../../util/util';
+import { bezier, bindAll } from '../../util/util';
 import window from '../../util/window';
 import browser from '../../util/browser';
 
@@ -11,7 +11,7 @@ import type Point from '@mapbox/point-geometry';
 import type Transform from '../../geo/transform';
 
 const inertiaLinearity = 0.3,
-    inertiaEasing = util.bezier(0, 0, inertiaLinearity, 1),
+    inertiaEasing = bezier(0, 0, inertiaLinearity, 1),
     inertiaMaxSpeed = 1400, // px/s
     inertiaDeceleration = 2500; // px/s^2
 
@@ -36,7 +36,7 @@ class DragPanHandler {
         this._map = map;
         this._el = map.getCanvasContainer();
 
-        util.bindAll([
+        bindAll([
             '_onDown',
             '_onMove',
             '_onUp',

@@ -8,8 +8,11 @@ import OpacityState from './opacity_state';
 import { shapeText, shapeIcon, WritingMode } from './shaping';
 import { getGlyphQuads, getIconQuads } from './quads';
 import CollisionFeature from './collision_feature';
-import util from '../util/util';
-import scriptDetection from '../util/script_detection';
+import { warnOnce } from '../util/util';
+import {
+    allowsVerticalWritingMode,
+    allowsLetterSpacing
+} from '../util/script_detection';
 import findPoleOfInaccessibility from '../util/find_pole_of_inaccessibility';
 import classifyRings from '../util/classify_rings';
 import EXTENT from '../data/extent';
@@ -110,10 +113,9 @@ function performSymbolLayout(bucket: SymbolBucket,
         const shapedTextOrientations = {};
         const text = feature.text;
         if (text) {
-            const allowsVerticalWritingMode = scriptDetection.allowsVerticalWritingMode(text);
             const textOffset: [number, number] = (layout.get('text-offset').evaluate(feature).map((t)=> t * oneEm): any);
             const spacing = layout.get('text-letter-spacing').evaluate(feature) * oneEm;
-            const spacingIfAllowed = scriptDetection.allowsLetterSpacing(text) ? spacing : 0;
+            const spacingIfAllowed = allowsLetterSpacing(text) ? spacing : 0;
             const textAnchor = layout.get('text-anchor').evaluate(feature);
             const textJustify = layout.get('text-justify').evaluate(feature);
             const maxWidth = layout.get('symbol-placement') !== 'line' ?
@@ -121,7 +123,7 @@ function performSymbolLayout(bucket: SymbolBucket,
                 0;
 
             shapedTextOrientations.horizontal = shapeText(text, glyphs, maxWidth, lineHeight, textAnchor, textJustify, spacingIfAllowed, textOffset, oneEm, WritingMode.horizontal);
-            if (allowsVerticalWritingMode && textAlongLine && keepUpright) {
+            if (allowsVerticalWritingMode(text) && textAlongLine && keepUpright) {
                 shapedTextOrientations.vertical = shapeText(text, glyphs, maxWidth, lineHeight, textAnchor, textJustify, spacingIfAllowed, textOffset, oneEm, WritingMode.vertical);
             }
         }
@@ -137,7 +139,7 @@ function performSymbolLayout(bucket: SymbolBucket,
                 if (bucket.sdfIcons === undefined) {
                     bucket.sdfIcons = image.sdf;
                 } else if (bucket.sdfIcons !== image.sdf) {
-                    util.warnOnce('Style sheet warning: Cannot mix SDF and non-SDF icons in one buffer');
+                    warnOnce('Style sheet warning: Cannot mix SDF and non-SDF icons in one buffer');
                 }
                 if (image.pixelRatio !== bucket.pixelRatio) {
                     bucket.iconsNeedLinear = true;
@@ -394,7 +396,9 @@ function addSymbol(bucket: SymbolBucket,
     const iconBoxStartIndex = iconCollisionFeature ? iconCollisionFeature.boxStartIndex : bucket.collisionBoxArray.length;
     const iconBoxEndIndex = iconCollisionFeature ? iconCollisionFeature.boxEndIndex : bucket.collisionBoxArray.length;
 
-    if (bucket.glyphOffsetArray.length >= SymbolBucket.MAX_GLYPHS) util.warnOnce("Too many glyphs being rendered in a tile. See https://github.com/mapbox/mapbox-gl-js/issues/2907");
+    if (bucket.glyphOffsetArray.length >= SymbolBucket.MAX_GLYPHS) warnOnce(
+        "Too many glyphs being rendered in a tile. See https://github.com/mapbox/mapbox-gl-js/issues/2907"
+    );
 
     const textOpacityState = new OpacityState();
     const iconOpacityState = new OpacityState();

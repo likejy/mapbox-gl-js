@@ -1,10 +1,8 @@
 // @flow
-
-
-import util from '../util/util';
+import { endsWith, filterObject } from '../util/util';
 
 import styleSpec from '../style-spec/reference/latest';
-import validateStyle from './validate_style';
+import validateStyle, {emitValidationErrors} from './validate_style';
 import Evented from '../util/evented';
 import { Layout, Transitionable, Transitioning, Properties } from './properties';
 
@@ -17,8 +15,6 @@ import type EvaluationParameters from './evaluation_parameters';
 const TRANSITION_SUFFIX = '-transition';
 
 class StyleLayer extends Evented {
-    static create: (layer: LayerSpecification) => StyleLayer;
-
     id: string;
     metadata: mixed;
     type: string;
@@ -105,7 +101,7 @@ class StyleLayer extends Evented {
     }
 
     getPaintProperty(name: string) {
-        if (util.endsWith(name, TRANSITION_SUFFIX)) {
+        if (endsWith(name, TRANSITION_SUFFIX)) {
             return this._transitionablePaint.getTransition(name.slice(0, -TRANSITION_SUFFIX.length));
         } else {
             return this._transitionablePaint.getValue(name);
@@ -120,7 +116,7 @@ class StyleLayer extends Evented {
             }
         }
 
-        if (util.endsWith(name, TRANSITION_SUFFIX)) {
+        if (endsWith(name, TRANSITION_SUFFIX)) {
             this._transitionablePaint.setTransition(name.slice(0, -TRANSITION_SUFFIX.length), (value: any) || undefined);
         } else {
             this._transitionablePaint.setValue(name, value);
@@ -168,7 +164,7 @@ class StyleLayer extends Evented {
             output.layout.visibility = 'none';
         }
 
-        return util.filterObject(output, (value, key) => {
+        return filterObject(output, (value, key) => {
             return value !== undefined &&
                 !(key === 'layout' && !Object.keys(value).length) &&
                 !(key === 'paint' && !Object.keys(value).length);
@@ -179,7 +175,7 @@ class StyleLayer extends Evented {
         if (options && options.validate === false) {
             return false;
         }
-        return validateStyle.emitErrors(this, validate.call(validateStyle, {
+        return emitValidationErrors(this, validate.call(validateStyle, {
             key: key,
             layerType: this.type,
             objectKey: name,
@@ -201,32 +197,4 @@ class StyleLayer extends Evented {
 
 export default StyleLayer;
 
-export const {
-    create
-} = StyleLayer;
 
-import './style_layer/circle_style_layer';
-import './style_layer/heatmap_style_layer';
-import './style_layer/hillshade_style_layer';
-import './style_layer/fill_style_layer';
-import './style_layer/fill_extrusion_style_layer';
-import './style_layer/line_style_layer';
-import './style_layer/symbol_style_layer';
-import './style_layer/background_style_layer';
-import './style_layer/raster_style_layer';
-
-const subclasses = {
-    'circle',
-    'heatmap',
-    'hillshade',
-    'fill',
-    'fill-extrusion',
-    'line',
-    'symbol',
-    'background',
-    'raster'
-};
-
-StyleLayer.create = function(layer: LayerSpecification) {
-    return new subclasses[layer.type](layer);
-};

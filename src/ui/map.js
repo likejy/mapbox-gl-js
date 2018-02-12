@@ -1,12 +1,12 @@
 // @flow
 
-import util from '../util/util';
+import { extend, bindAll, warnOnce } from '../util/util';
 
 import browser from '../util/browser';
 import window from '../util/window';
-import { HTMLImageElement, HTMLElement } from '../util/window';
+const { HTMLImageElement, HTMLElement } = window;
 import DOM from '../util/dom';
-import ajax from '../util/ajax';
+import { getImage, ResourceType } from '../util/ajax';
 import Style from '../style/style';
 import EvaluationParameters from '../style/evaluation_parameters';
 import Painter from '../render/painter';
@@ -48,7 +48,7 @@ type IControl = {
 }
 /* eslint-enable no-use-before-define */
 
-type ResourceTypeEnum = $Keys<typeof ajax.ResourceType>;
+type ResourceTypeEnum = $Keys<typeof ResourceType>;
 export type RequestTransformFunction = (url: string, resourceType?: ResourceTypeEnum) => RequestParameters;
 
 type MapOptions = {
@@ -252,7 +252,7 @@ class Map extends Camera {
     touchZoomRotate: TouchZoomRotateHandler;
 
     constructor(options: MapOptions) {
-        options = util.extend({}, defaultOptions, options);
+        options = extend({}, defaultOptions, options);
 
         if (options.minZoom != null && options.maxZoom != null && options.minZoom > options.maxZoom) {
             throw new Error(`maxZoom must be greater than minZoom`);
@@ -292,7 +292,7 @@ class Map extends Camera {
             this.setMaxBounds(options.maxBounds);
         }
 
-        util.bindAll([
+        bindAll([
             '_onWindowOnline',
             '_onWindowResize',
             '_contextLost',
@@ -645,7 +645,7 @@ class Map extends Camera {
                         mousein = false;
                     } else if (!mousein) {
                         mousein = true;
-                        listener.call(this, util.extend({features}, e, {type}));
+                        listener.call(this, extend({features}, e, {type}));
                     }
                 };
                 const mouseout = () => {
@@ -660,13 +660,13 @@ class Map extends Camera {
                         mousein = true;
                     } else if (mousein) {
                         mousein = false;
-                        listener.call(this, util.extend({}, e, {type}));
+                        listener.call(this, extend({}, e, {type}));
                     }
                 };
                 const mouseout = (e) => {
                     if (mousein) {
                         mousein = false;
-                        listener.call(this, util.extend({}, e, {type}));
+                        listener.call(this, extend({}, e, {type}));
                     }
                 };
                 return {layer, listener, delegates: {mousemove, mouseout}};
@@ -674,7 +674,7 @@ class Map extends Camera {
                 const delegate = (e) => {
                     const features = this.getLayer(layer) ? this.queryRenderedFeatures(e.point, {layers: [layer]}) : [];
                     if (features.length) {
-                        listener.call(this, util.extend({features}, e));
+                        listener.call(this, extend({features}, e));
                     }
                 };
                 return {layer, listener, delegates: {[type]: delegate}};
@@ -940,7 +940,9 @@ class Map extends Camera {
                 }
                 return this;
             } catch (e) {
-                util.warnOnce(`Unable to perform style diff: ${e.message || e.error || e}.  Rebuilding the style from scratch.`);
+                warnOnce(
+                    `Unable to perform style diff: ${e.message || e.error || e}.  Rebuilding the style from scratch.`
+                );
             }
         }
 
@@ -984,7 +986,7 @@ class Map extends Camera {
      * @returns {boolean} A Boolean indicating whether the style is fully loaded.
      */
     isStyleLoaded() {
-        if (!this.style) return util.warnOnce('There is no style added to the map.');
+        if (!this.style) return warnOnce('There is no style added to the map.');
         return this.style.loaded();
     }
 
@@ -1146,7 +1148,7 @@ class Map extends Camera {
      * @see [Add an icon to the map](https://www.mapbox.com/mapbox-gl-js/example/add-image/)
      */
     loadImage(url: string, callback: Function) {
-        ajax.getImage(this._transformRequest(url, ajax.ResourceType.Image), callback);
+        getImage(this._transformRequest(url, ResourceType.Image), callback);
     }
 
     /**
@@ -1427,7 +1429,7 @@ class Map extends Camera {
     }
 
     _setupPainter() {
-        const attributes = util.extend({
+        const attributes = extend({
             failIfMajorPerformanceCaveat: this._failIfMajorPerformanceCaveat,
             preserveDrawingBuffer: this._preserveDrawingBuffer
         }, isSupported.webGLContextAttributes);

@@ -2,7 +2,7 @@
 
 import DOM from '../../util/dom';
 
-import util from '../../util/util';
+import { bezier, bindAll } from '../../util/util';
 import window from '../../util/window';
 import browser from '../../util/browser';
 
@@ -10,7 +10,7 @@ import type Map from '../map';
 import type Point from '@mapbox/point-geometry';
 
 const inertiaLinearity = 0.15,
-    inertiaEasing = util.bezier(0, 0, inertiaLinearity, 1),
+    inertiaEasing = bezier(0, 0, inertiaLinearity, 1),
     inertiaDeceleration = 12, // scale / s^2
     inertiaMaxSpeed = 2.5, // scale / s
     significantScaleThreshold = 0.15,
@@ -39,7 +39,7 @@ class TouchZoomRotateHandler {
         this._map = map;
         this._el = map.getCanvasContainer();
 
-        util.bindAll([
+        bindAll([
             '_onStart',
             '_onMove',
             '_onEnd'

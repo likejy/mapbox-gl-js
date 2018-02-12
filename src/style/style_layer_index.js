@@ -1,8 +1,9 @@
 // @flow
 
 import StyleLayer from './style_layer';
+import createStyleLayer from './create_style_layer';
 
-import util from '../util/util';
+import { values } from '../util/util';
 import featureFilter from '../style-spec/feature_filter';
 import groupByLayout from '../style-spec/group_by_layout';
 
@@ -33,7 +34,7 @@ class StyleLayerIndex {
         for (const layerConfig of layerConfigs) {
             this._layerConfigs[layerConfig.id] = layerConfig;
 
-            const layer = this._layers[layerConfig.id] = StyleLayer.create(layerConfig);
+            const layer = this._layers[layerConfig.id] = createStyleLayer(layerConfig);
             layer._featureFilter = featureFilter(layer.filter);
         }
         for (const id of removedIds) {
@@ -43,7 +44,7 @@ class StyleLayerIndex {
 
         this.familiesBySource = {};
 
-        const groups = groupByLayout(util.values(this._layerConfigs));
+        const groups = groupByLayout(values(this._layerConfigs));
 
         for (const layerConfigs of groups) {
             const layers = layerConfigs.map((layerConfig) => this._layers[layerConfig.id]);

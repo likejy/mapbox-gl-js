@@ -3,7 +3,7 @@
 import DOM from '../../util/dom';
 
 import LngLatBounds from '../../geo/lng_lat_bounds';
-import util from '../../util/util';
+import { bindAll } from '../../util/util';
 import window from '../../util/window';
 
 import type Map from '../map';
@@ -29,7 +29,7 @@ class BoxZoomHandler {
         this._el = map.getCanvasContainer();
         this._container = map.getContainer();
 
-        util.bindAll([
+        bindAll([
             '_onMouseDown',
             '_onMouseMove',
             '_onMouseUp',

@@ -1,6 +1,6 @@
 // @flow
 
-import ajax from '../util/ajax';
+import { getVideo } from '../util/ajax';
 
 import ImageSource from './image_source';
 import rasterBoundsAttributes from '../data/raster_bounds_attributes';
@@ -63,7 +63,7 @@ class VideoSource extends ImageSource {
         const options = this.options;
         this.urls = options.urls;
 
-        ajax.getVideo(options.urls, (err, video) => {
+        getVideo(options.urls, (err, video) => {
             if (err) {
                 this.fire('error', {error: err});
             } else if (video) {

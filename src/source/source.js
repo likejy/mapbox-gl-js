@@ -1,6 +1,6 @@
 // @flow
 
-import util from '../util/util';
+import { bindAll } from '../util/util';
 
 import type Dispatcher from '../util/dispatcher';
 import type Evented from '../util/evented';
@@ -77,22 +77,22 @@ export interface Source {
     +prepare?: () => void;
 }
 
-import '../source/vector_tile_source';
-import '../source/raster_tile_source';
-import '../source/raster_dem_tile_source';
-import '../source/geojson_source';
-import '../source/video_source';
-import '../source/image_source';
-import '../source/canvas_source';
+import vector from '../source/vector_tile_source';
+import raster from '../source/raster_tile_source';
+import rasterDem from '../source/raster_dem_tile_source';
+import geojson from '../source/geojson_source';
+import video from '../source/video_source';
+import image from '../source/image_source';
+import canvas from '../source/canvas_source';
 
 const sourceTypes = {
-    'vector',
-    'raster',
-    'raster-dem',
-    'geojson',
-    'video',
-    'image',
-    'canvas'
+    vector,
+    raster,
+    'raster-dem': rasterDem,
+    geojson,
+    video,
+    image,
+    canvas
 };
 
 /*
@@ -112,7 +112,7 @@ export const create = function(id: string, specification: SourceSpecification, d
         throw new Error(`Expected Source id to be ${id} instead of ${source.id}`);
     }
 
-    util.bindAll(['load', 'abort', 'unload', 'serialize', 'prepare'], source);
+    bindAll(['load', 'abort', 'unload', 'serialize', 'prepare'], source);
     return source;
 };
 
