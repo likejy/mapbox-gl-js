@@ -10,14 +10,15 @@
 
 'use strict'; // eslint-disable-line strict
 
-require('flow-remove-types/register');
-
 const fs = require('fs');
-const ejs = require('ejs');
-const util = require('../src/util/util');
-const {createLayout, viewTypes} = require('../src/util/struct_array');
 
-import type {ViewType, StructArrayLayout} from '../src/util/struct_array';
+require = require('@std/esm')(module, {"cjs":true, "esm":"js"});
+
+const ejs = require('ejs');
+const util = require('../src_untyped/util/util');
+const {createLayout, viewTypes} = require('../src_untyped/util/struct_array');
+
+import type {ViewType, StructArrayLayout} from '../src_untyped/util/struct_array';
 
 const structArrayLayoutJs = ejs.compile(fs.readFileSync('src/util/struct_array_layout.js.ejs', 'utf8'), {strict: true});
 const structArrayJs = ejs.compile(fs.readFileSync('src/util/struct_array.js.ejs', 'utf8'), {strict: true});
@@ -72,7 +73,7 @@ function createStructArrayType(name: string, layout: StructArrayLayout, includeS
             includeStructAccessors
         });
     } else {
-        arrayTypeEntries.add(`${arrayClass}: ${layoutClass}`);
+        arrayTypeEntries.add(`${layoutClass} as ${arrayClass}`);
     }
 }
 
@@ -118,16 +119,16 @@ function camelize (str) {
 
 global.camelize = camelize;
 
-import posAttributes from '../src/data/pos_attributes';
-import rasterBoundsAttributes from '../src/data/raster_bounds_attributes';
+const posAttributes = require('../src_untyped/data/pos_attributes').default;
+const rasterBoundsAttributes = require('../src_untyped/data/raster_bounds_attributes').default;
 
 createStructArrayType('pos', posAttributes);
 createStructArrayType('raster_bounds', rasterBoundsAttributes);
 
-import circleAttributes from '../src/data/bucket/circle_attributes';
-import fillAttributes from '../src/data/bucket/fill_attributes';
-import fillExtrusionAttributes from '../src/data/bucket/fill_extrusion_attributes' ;
-import lineAttributes from '../src/data/bucket/line_attributes';
+const circleAttributes = require('../src_untyped/data/bucket/circle_attributes').default;
+const fillAttributes = require('../src_untyped/data/bucket/fill_attributes').default;
+const fillExtrusionAttributes = require('../src_untyped/data/bucket/fill_extrusion_attributes').default ;
+const lineAttributes = require('../src_untyped/data/bucket/line_attributes').default;
 
 // layout vertex arrays
 const layoutAttributes = {
@@ -142,7 +143,7 @@ for (const name in layoutAttributes) {
 }
 
 // symbol layer specific arrays
-import symbolAttributes from '../src/data/bucket/symbol_attributes';
+const symbolAttributes = require('../src_untyped/data/bucket/symbol_attributes').default;
 createStructArrayType(`symbol_layout`, symbolAttributes.symbolLayoutAttributes);
 createStructArrayType(`symbol_dynamic_layout`, symbolAttributes.dynamicLayoutAttributes);
 createStructArrayType(`symbol_opacity`, symbolAttributes.placementOpacityAttributes);
@@ -203,19 +204,17 @@ fs.writeFileSync('src/data/array_types.js',
     `// This file is generated. Edit build/generate-struct-arrays.js, then run \`yarn run codegen\`.
 // @flow
 
-const assert = require('assert');
-const {StructArray} = require('../util/struct_array');
-const {Struct} = require('../util/struct_array');
-const {register} = require('../util/web_worker_transfer');
-const Point = require('@mapbox/point-geometry');
+import assert from 'assert';
+import {StructArray} from '../util/struct_array';
+import {Struct} from '../util/struct_array';
+import {register} from '../util/web_worker_transfer';
+import Point from '@mapbox/point-geometry';
 
 ${layouts.map(structArrayLayoutJs).join('\n')}
 
 ${arraysWithStructAccessors.map(structArrayJs).join('\n')}
 
-module.exports = {
-    ${layouts.map(layout => layout.className).join(',\n    ')},
-    ${[...arrayTypeEntries].join(',\n    ')},
-    ${arraysWithStructAccessors.map(array => array.arrayClass).join(',\n    ')}
-};\n`);
+export {
+    ${[...arrayTypeEntries].join(',\n    ')}
+};`);
 
