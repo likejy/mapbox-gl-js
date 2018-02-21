@@ -22,8 +22,7 @@ const inertiaLinearity = 0.3,
 class DragPanHandler {
     _map: Map;
     _el: HTMLElement;
-    _enabled: boolean;
-    _active: boolean;
+    _state: 'disabled' | 'inactive' | 'pending' | 'active';
     _pos: Point;
     _previousPos: Point;
     _inertia: Array<[number, Point]>;
@@ -35,11 +34,12 @@ class DragPanHandler {
     constructor(map: Map) {
         this._map = map;
         this._el = map.getCanvasContainer();
+        this._state = 'disabled';
 
         util.bindAll([
-            '_onDown',
-            '_onMove',
-            '_onUp',
+            'onDown',
+            'onMove',
+            'onUp',
             '_onDragFrame'
         ], this);
     }
@@ -50,7 +50,7 @@ class DragPanHandler {
      * @returns {boolean} `true` if the "drag to pan" interaction is enabled.
      */
     isEnabled() {
-        return !!this._enabled;
+        return this._state !== 'disabled';
     }
 
     /**
@@ -59,7 +59,7 @@ class DragPanHandler {
      * @returns {boolean} `true` if the "drag to pan" interaction is active.
      */
     isActive() {
-        return !!this._active;
+        return this._state === 'active';
     }
 
     /**
@@ -71,9 +71,7 @@ class DragPanHandler {
     enable() {
         if (this.isEnabled()) return;
         this._el.classList.add('mapboxgl-touch-drag-pan');
-        this._el.addEventListener('mousedown', this._onDown);
-        this._el.addEventListener('touchstart', this._onDown);
-        this._enabled = true;
+        this._state = 'inactive';
     }
 
     /**
@@ -85,36 +83,32 @@ class DragPanHandler {
     disable() {
         if (!this.isEnabled()) return;
         this._el.classList.remove('mapboxgl-touch-drag-pan');
-        this._el.removeEventListener('mousedown', this._onDown);
-        this._el.removeEventListener('touchstart', this._onDown);
-        this._enabled = false;
+        this._state = 'disabled';
     }
 
-    _onDown(e: MouseEvent | TouchEvent) {
+    onDown(e: MouseEvent | TouchEvent) {
+        if (this._state !== 'inactive') return;
         if (this._map.boxZoom.isActive()) return;
         if (this._map.dragRotate.isActive()) return;
-        if (this.isActive()) return;
 
         if (e.touches) {
             if ((e.touches: any).length > 1) return;
-            window.document.addEventListener('touchmove', this._onMove);
-            window.document.addEventListener('touchend', this._onUp);
         } else {
             if (e.ctrlKey || e.button !== 0) return;
-            window.document.addEventListener('mousemove', this._onMove);
-            window.document.addEventListener('mouseup', this._onUp);
         }
 
         // Deactivate DragPan when the window loses focus. Otherwise if a mouseup occurs when the window
         // isn't in focus, DragPan will still be active even though the mouse is no longer pressed.
-        window.addEventListener('blur', this._onUp);
+        window.addEventListener('blur', this.onUp);
 
-        this._active = false;
+        this._state = 'pending';
         this._previousPos = DOM.mousePos(this._el, e);
         this._inertia = [[browser.now(), this._previousPos]];
     }
 
-    _onMove(e: MouseEvent | TouchEvent) {
+    onMove(e: MouseEvent | TouchEvent) {
+        if (this._state !== 'pending' && this._state !== 'active') return;
+
         this._lastMoveEvent = e;
         e.preventDefault();
 
@@ -122,10 +116,10 @@ class DragPanHandler {
         this._drainInertiaBuffer();
         this._inertia.push([browser.now(), this._pos]);
 
-        if (!this.isActive()) {
+        if (this._state === 'pending') {
             // we treat the first move event (rather than the mousedown event)
             // as the start of the drag
-            this._active = true;
+            this._state = 'active';
             this._fireEvent('dragstart', e);
             this._fireEvent('movestart', e);
         }
@@ -153,18 +147,18 @@ class DragPanHandler {
      * Called when dragging stops.
      * @private
      */
-    _onUp(e: MouseEvent | TouchEvent | FocusEvent) {
+    onUp(e: MouseEvent | TouchEvent | FocusEvent) {
+        if (this._state !== 'pending' && this._state !== 'active') return;
         if (e.type === 'mouseup' && e.button !== 0) return;
 
-        window.document.removeEventListener('touchmove', this._onMove);
-        window.document.removeEventListener('touchend', this._onUp);
-        window.document.removeEventListener('mousemove', this._onMove);
-        window.document.removeEventListener('mouseup', this._onUp);
-        window.removeEventListener('blur', this._onUp);
+        window.removeEventListener('blur', this.onUp);
 
-        if (!this.isActive()) return;
+        if (this._state !== 'active') {
+            this._state = 'inactive';
+            return;
+        }
 
-        this._active = false;
+        this._state = 'inactive';
         delete this._lastMoveEvent;
         delete this._previousPos;
         delete this._pos;

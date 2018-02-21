@@ -3,6 +3,7 @@
 ### ⚠️ Breaking changes
 
 * `Evented` is no longer publicly exported, and `Evented#fire` and `Evented#listens` are now private. If you are writing a class that needs event emitting functionality, consider using [`EventEmitter`](https://nodejs.org/api/events.html#events_class_eventemitter) or similar libraries instead.
+* Map `mousemove` events are now fired even during drag gestures (panning, rotating, box-zooming)
 
 ## 0.44.1
 

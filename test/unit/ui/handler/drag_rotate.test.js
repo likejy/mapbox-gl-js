@@ -308,23 +308,6 @@ test('DragRotateHandler responds to events on the canvas container (#1301)', (t)
     t.end();
 });
 
-test('DragRotateHandler prevents mousemove events from firing during a drag (#1555)', (t) => {
-    const map = createMap();
-
-    const mousemove = t.spy();
-    map.on('mousemove', mousemove);
-
-    simulate.mousedown(map.getCanvasContainer(), {buttons: 2, button: 2});
-    simulate.mousemove(map.getCanvasContainer(), {buttons: 2});
-    map._updateCamera();
-    simulate.mouseup(map.getCanvasContainer(),   {buttons: 0, button: 2});
-
-    t.ok(mousemove.notCalled);
-
-    map.remove();
-    t.end();
-});
-
 test('DragRotateHandler ends a control-left-click drag on mouseup even when the control key was previously released (#1888)', (t) => {
     const map = createMap();
 
@@ -569,6 +552,36 @@ test('DragRotateHandler does not end a control-left-button drag on right-button 
     t.equal(rotatestart.callCount, 1);
     t.equal(rotate.callCount, 2);
     t.equal(rotateend.callCount, 1);
+
+    map.remove();
+    t.end();
+});
+
+test('DragRotateHandler does not begin a drag if preventDefault is called on the mousedown event', (t) => {
+    const map = createMap();
+
+    map.on('mousedown', e => e.preventDefault());
+
+    const rotatestart = t.spy();
+    const rotate      = t.spy();
+    const rotateend   = t.spy();
+
+    map.on('rotatestart', rotatestart);
+    map.on('rotate',      rotate);
+    map.on('rotateend',   rotateend);
+
+    simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2});
+    map._updateCamera();
+
+    simulate.mousemove(map.getCanvas(), {buttons: 2});
+    map._updateCamera();
+
+    simulate.mouseup(map.getCanvas(),   {buttons: 0, button: 2});
+    map._updateCamera();
+
+    t.equal(rotatestart.callCount, 0);
+    t.equal(rotate.callCount, 0);
+    t.equal(rotateend.callCount, 0);
 
     map.remove();
     t.end();

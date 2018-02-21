@@ -330,3 +330,33 @@ test('DragPanHandler does not end a drag on right button mouseup', (t) => {
     map.remove();
     t.end();
 });
+
+test('DragPanHandler does not begin a drag if preventDefault is called on the mousedown event', (t) => {
+    const map = createMap();
+
+    map.on('mousedown', e => e.preventDefault());
+
+    const dragstart = t.spy();
+    const drag      = t.spy();
+    const dragend   = t.spy();
+
+    map.on('dragstart', dragstart);
+    map.on('drag',      drag);
+    map.on('dragend',   dragend);
+
+    simulate.mousedown(map.getCanvas());
+    map._updateCamera();
+
+    simulate.mousemove(map.getCanvas());
+    map._updateCamera();
+
+    simulate.mouseup(map.getCanvas());
+    map._updateCamera();
+
+    t.equal(dragstart.callCount, 0);
+    t.equal(drag.callCount, 0);
+    t.equal(dragend.callCount, 0);
+
+    map.remove();
+    t.end();
+});

@@ -2,7 +2,6 @@
 
 const DOM = require('../../util/dom');
 const util = require('../../util/util');
-const window = require('../../util/window');
 const browser = require('../../util/browser');
 
 import type Map from '../map';
@@ -22,7 +21,7 @@ const inertiaLinearity = 0.15,
 class TouchZoomRotateHandler {
     _map: Map;
     _el: HTMLElement;
-    _enabled: boolean;
+    _state: 'disabled' | 'inactive' | 'pending' | 'active';
     _aroundCenter: boolean;
     _rotationDisabled: boolean;
     _startVec: Point;
@@ -37,11 +36,12 @@ class TouchZoomRotateHandler {
     constructor(map: Map) {
         this._map = map;
         this._el = map.getCanvasContainer();
+        this._state = 'disabled';
 
         util.bindAll([
-            '_onStart',
-            '_onMove',
-            '_onEnd'
+            'onStart',
+            'onMove',
+            'onEnd'
         ], this);
     }
 
@@ -51,7 +51,7 @@ class TouchZoomRotateHandler {
      * @returns {boolean} `true` if the "pinch to rotate and zoom" interaction is enabled.
      */
     isEnabled() {
-        return !!this._enabled;
+        return this._state !== 'disabled';
     }
 
     /**
@@ -68,8 +68,7 @@ class TouchZoomRotateHandler {
     enable(options: any) {
         if (this.isEnabled()) return;
         this._el.classList.add('mapboxgl-touch-zoom-rotate');
-        this._el.addEventListener('touchstart', this._onStart, false);
-        this._enabled = true;
+        this._state = 'inactive';
         this._aroundCenter = options && options.around === 'center';
     }
 
@@ -82,8 +81,7 @@ class TouchZoomRotateHandler {
     disable() {
         if (!this.isEnabled()) return;
         this._el.classList.remove('mapboxgl-touch-zoom-rotate');
-        this._el.removeEventListener('touchstart', this._onStart);
-        this._enabled = false;
+        this._state = 'disabled';
     }
 
     /**
@@ -108,7 +106,8 @@ class TouchZoomRotateHandler {
         this._rotationDisabled = false;
     }
 
-    _onStart(e: TouchEvent) {
+    onStart(e: TouchEvent) {
+        if (this._state !== 'inactive') return;
         if (e.touches.length !== 2) return;
 
         const p0 = DOM.mousePos(this._el, e.touches[0]),
@@ -119,12 +118,10 @@ class TouchZoomRotateHandler {
         this._startBearing = this._map.transform.bearing;
         this._gestureIntent = undefined;
         this._inertia = [];
-
-        window.document.addEventListener('touchmove', this._onMove, false);
-        window.document.addEventListener('touchend', this._onEnd, false);
     }
 
-    _onMove(e: TouchEvent) {
+    onMove(e: TouchEvent) {
+        if (this._state !== 'pending' && this._state !== 'active') return;
         if (e.touches.length !== 2) return;
 
         const p0 = DOM.mousePos(this._el, e.touches[0]),
@@ -173,9 +170,9 @@ class TouchZoomRotateHandler {
         e.preventDefault();
     }
 
-    _onEnd(e: TouchEvent) {
-        window.document.removeEventListener('touchmove', this._onMove);
-        window.document.removeEventListener('touchend', this._onEnd);
+    onEnd(e: TouchEvent) {
+        if (this._state !== 'pending' && this._state !== 'active') return;
+
         this._drainInertiaBuffer();
 
         const inertia = this._inertia,

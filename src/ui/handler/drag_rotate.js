@@ -22,8 +22,7 @@ const inertiaLinearity = 0.25,
 class DragRotateHandler {
     _map: Map;
     _el: HTMLElement;
-    _enabled: boolean;
-    _active: boolean;
+    _state: 'disabled' | 'inactive' | 'pending' | 'active';
     _button: 'right' | 'left';
     _eventButton: number;
     _bearingSnap: number;
@@ -51,14 +50,15 @@ class DragRotateHandler {
     }) {
         this._map = map;
         this._el = options.element || map.getCanvasContainer();
+        this._state = 'disabled';
         this._button = options.button || 'right';
         this._bearingSnap = options.bearingSnap || 0;
         this._pitchWithRotate = options.pitchWithRotate !== false;
 
         util.bindAll([
-            '_onDown',
-            '_onMove',
-            '_onUp',
+            'onDown',
+            'onMove',
+            'onUp',
             '_onDragFrame'
         ], this);
     }
@@ -69,7 +69,7 @@ class DragRotateHandler {
      * @returns {boolean} `true` if the "drag to rotate" interaction is enabled.
      */
     isEnabled() {
-        return !!this._enabled;
+        return this._state !== 'disabled';
     }
 
     /**
@@ -78,7 +78,7 @@ class DragRotateHandler {
      * @returns {boolean} `true` if the "drag to rotate" interaction is active.
      */
     isActive() {
-        return !!this._active;
+        return this._state === 'active';
     }
 
     /**
@@ -89,8 +89,7 @@ class DragRotateHandler {
      */
     enable() {
         if (this.isEnabled()) return;
-        this._el.addEventListener('mousedown', this._onDown);
-        this._enabled = true;
+        this._state = 'inactive';
     }
 
     /**
@@ -101,14 +100,13 @@ class DragRotateHandler {
      */
     disable() {
         if (!this.isEnabled()) return;
-        this._el.removeEventListener('mousedown', this._onDown);
-        this._enabled = false;
+        this._state = 'disabled';
     }
 
-    _onDown(e: MouseEvent) {
+    onDown(e: MouseEvent) {
+        if (this._state !== 'inactive') return;
         if (this._map.boxZoom.isActive()) return;
         if (this._map.dragPan.isActive()) return;
-        if (this.isActive()) return;
 
         if (this._button === 'right') {
             this._eventButton = e.button;
@@ -127,12 +125,11 @@ class DragRotateHandler {
 
         DOM.disableDrag();
 
-        window.document.addEventListener('mousemove', this._onMove, {capture: true});
-        window.document.addEventListener('mouseup', this._onUp);
-        /* Deactivate DragRotate when the window looses focus. Otherwise if a mouseup occurs when the window isn't in focus, DragRotate will still be active even though the mouse is no longer pressed. */
-        window.addEventListener('blur', this._onUp);
+        // Deactivate DragRotateHandler when the window loses focus. Otherwise if a mouseup occurs when the window
+        // isn't in focus, DragRotateHandler will still be active even though the mouse is no longer pressed.
+        window.addEventListener('blur', this.onUp);
 
-        this._active = false;
+        this._state = 'pending';
         this._inertia = [[browser.now(), this._map.getBearing()]];
         this._previousPos = DOM.mousePos(this._el, e);
         this._center = this._map.transform.centerPoint;  // Center of rotation
@@ -140,12 +137,14 @@ class DragRotateHandler {
         e.preventDefault();
     }
 
-    _onMove(e: MouseEvent) {
+    onMove(e: MouseEvent) {
+        if (this._state !== 'pending' && this._state !== 'active') return;
+
         this._lastMoveEvent = e;
         this._pos = DOM.mousePos(this._el, e);
 
-        if (!this.isActive()) {
-            this._active = true;
+        if (this._state === 'pending') {
+            this._state = 'active';
             this._fireEvent('rotatestart', e);
             this._fireEvent('movestart', e);
             if (this._pitchWithRotate) {
@@ -185,18 +184,20 @@ class DragRotateHandler {
         this._previousPos = this._pos;
     }
 
-    _onUp(e: MouseEvent | FocusEvent) {
+    onUp(e: MouseEvent | FocusEvent) {
+        if (this._state !== 'pending' && this._state !== 'active') return;
         if (e.type === 'mouseup' && e.button !== this._eventButton) return;
 
-        window.document.removeEventListener('mousemove', this._onMove, {capture: true});
-        window.document.removeEventListener('mouseup', this._onUp);
-        window.removeEventListener('blur', this._onUp);
+        window.removeEventListener('blur', this.onUp);
 
         DOM.enableDrag();
 
-        if (!this.isActive()) return;
+        if (this._state !== 'active') {
+            this._state = 'inactive';
+            return;
+        }
 
-        this._active = false;
+        this._state = 'inactive';
         delete this._lastMoveEvent;
         delete this._previousPos;
 

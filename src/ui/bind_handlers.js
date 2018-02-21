@@ -1,8 +1,7 @@
 // @flow
 
 const DOM = require('../util/dom');
-const {Event} = require('../util/evented');
-const Point = require('@mapbox/point-geometry');
+const {MapMouseEvent, MapTouchEvent} = require('../ui/events');
 
 import type Map from './map';
 
@@ -43,19 +42,37 @@ module.exports = function bindHandlers(map: Map, options: {}) {
     el.addEventListener('dblclick', onDblClick, false);
     el.addEventListener('contextmenu', onContextMenu, false);
 
-    function onMouseOut(e: MouseEvent) {
-        fireMouseEvent('mouseout', e);
-    }
-
     function onMouseDown(e: MouseEvent) {
+        const mapEvent = new MapMouseEvent('mousedown', map, e);
+        map.fire(mapEvent);
+
+        if (mapEvent.defaultPrevented) {
+            return;
+        }
+
         if (!map.doubleClickZoom.isActive()) {
             map.stop();
         }
 
-        startPos = DOM.mousePos(el, e);
-        fireMouseEvent('mousedown', e);
-
+        startPos = mapEvent.point;
         mouseDown = true;
+
+        map.boxZoom.onMouseDown(e);
+        map.dragRotate.onDown(e);
+        map.dragPan.onDown(e);
+    }
+
+    function onMouseMove(e: MouseEvent) {
+        let target: any = e.toElement || e.target;
+        while (target && target !== el) target = target.parentNode;
+        if (target !== el) return;
+
+        const mapEvent = new MapMouseEvent('mousemove', map, e);
+        map.fire(mapEvent);
+
+        map.boxZoom.onMouseMove(e);
+        map.dragRotate.onMove(e);
+        map.dragPan.onMove(e);
     }
 
     function onMouseUp(e: MouseEvent) {
@@ -68,22 +85,16 @@ module.exports = function bindHandlers(map: Map, options: {}) {
 
         contextMenuEvent = null;
         mouseDown = false;
-        fireMouseEvent('mouseup', e);
-    }
 
-    function onMouseMove(e: MouseEvent) {
-        if (map.dragPan.isActive()) return;
-        if (map.dragRotate.isActive()) return;
+        const mapEvent = new MapMouseEvent('mouseup', map, e);
+        map.fire(mapEvent);
 
-        let target: any = e.toElement || e.target;
-        while (target && target !== el) target = target.parentNode;
-        if (target !== el) return;
-
-        fireMouseEvent('mousemove', e);
+        map.boxZoom.onMouseUp(e);
+        map.dragRotate.onUp(e);
+        map.dragPan.onUp(e);
     }
 
     function onMouseOver(e: MouseEvent) {
-
         let target: any = e.toElement || e.target;
         while (target && target !== el) target = target.parentNode;
         if (target !== el) return;
@@ -91,9 +102,19 @@ module.exports = function bindHandlers(map: Map, options: {}) {
         fireMouseEvent('mouseover', e);
     }
 
+    function onMouseOut(e: MouseEvent) {
+        fireMouseEvent('mouseout', e);
+    }
+
     function onTouchStart(e: TouchEvent) {
+        const mapEvent = new MapTouchEvent('touchstart', map, e);
+        map.fire(mapEvent);
+
+        if (mapEvent.defaultPrevented) {
+            return;
+        }
+
         map.stop();
-        fireTouchEvent('touchstart', e);
 
         if (!e.touches || e.touches.length > 1) return;
 
@@ -103,16 +124,27 @@ module.exports = function bindHandlers(map: Map, options: {}) {
         } else {
             clearTimeout(tapped);
             tapped = null;
-            fireMouseEvent('dblclick', e);
+            fireMouseEvent('dblclick', (e: any));
         }
+
+        map.dragPan.onDown(e);
+        map.touchZoomRotate.onStart(e);
     }
 
     function onTouchMove(e: TouchEvent) {
-        fireTouchEvent('touchmove', e);
+        const mapEvent = new MapTouchEvent('touchmove', map, e);
+        map.fire(mapEvent);
+
+        map.dragPan.onMove(e);
+        map.touchZoomRotate.onMove(e);
     }
 
     function onTouchEnd(e: TouchEvent) {
-        fireTouchEvent('touchend', e);
+        const mapEvent = new MapTouchEvent('touchend', map, e);
+        map.fire(mapEvent);
+
+        map.dragPan.onUp(e);
+        map.touchZoomRotate.onEnd(e);
     }
 
     function onTouchCancel(e: TouchEvent) {
@@ -149,28 +181,11 @@ module.exports = function bindHandlers(map: Map, options: {}) {
         e.preventDefault();
     }
 
-    function fireMouseEvent(type, e) {
-        const pos = DOM.mousePos(el, e);
-
-        return map.fire(new Event(type, {
-            lngLat: map.unproject(pos),
-            point: pos,
-            originalEvent: e
-        }));
+    function fireMouseEvent(type: string, originalEvent: MouseEvent) {
+        map.fire(new MapMouseEvent(type, map, originalEvent));
     }
 
-    function fireTouchEvent(type, e) {
-        const touches = DOM.touchPos(el, e);
-        const singular = touches.reduce((prev, curr, i, arr) => {
-            return prev.add(curr.div(arr.length));
-        }, new Point(0, 0));
-
-        return map.fire(new Event(type, {
-            lngLat: map.unproject(singular),
-            point: singular,
-            lngLats: touches.map((t) => { return map.unproject(t); }, this),
-            points: touches,
-            originalEvent: e
-        }));
+    function fireTouchEvent(type: string, originalEvent: TouchEvent) {
+        map.fire(new MapTouchEvent(type, map, originalEvent));
     }
 };
