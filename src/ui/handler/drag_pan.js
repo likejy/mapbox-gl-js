@@ -88,8 +88,6 @@ class DragPanHandler {
 
     onDown(e: MouseEvent | TouchEvent) {
         if (this._state !== 'inactive') return;
-        if (this._map.boxZoom.isActive()) return;
-        if (this._map.dragRotate.isActive()) return;
 
         if (e.touches) {
             if ((e.touches: any).length > 1) return;

@@ -58,8 +58,14 @@ module.exports = function bindHandlers(map: Map, options: {}) {
         mouseDown = true;
 
         map.boxZoom.onMouseDown(e);
-        map.dragRotate.onDown(e);
-        map.dragPan.onDown(e);
+
+        if (!map.boxZoom.isActive() && !map.dragPan.isActive()) {
+            map.dragRotate.onDown(e);
+        }
+
+        if (!map.boxZoom.isActive() && !map.dragRotate.isActive()) {
+            map.dragPan.onDown(e);
+        }
     }
 
     function onMouseMove(e: MouseEvent) {
@@ -127,7 +133,10 @@ module.exports = function bindHandlers(map: Map, options: {}) {
             fireMouseEvent('dblclick', (e: any));
         }
 
-        map.dragPan.onDown(e);
+        if (!map.boxZoom.isActive() && !map.dragRotate.isActive()) {
+            map.dragPan.onDown(e);
+        }
+
         map.touchZoomRotate.onStart(e);
     }
 
