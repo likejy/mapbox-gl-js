@@ -7,17 +7,19 @@ import json from 'rollup-plugin-json';
 import browserifyPlugin from 'rollup-plugin-browserify-transform';
 import brfs from 'brfs';
 import uglify from 'rollup-plugin-uglify'
+import sourcemaps from 'rollup-plugin-sourcemaps';
 import minifyStyleSpec from './build/rollup_plugin_minify_style_spec';
 
 const production = process.env.BUILD === 'production';
 const outputFile = production ? 'dist/mapbox-gl.js' : 'dist/mapbox-gl-dev.js';
 
 const plugins = [
-    flow(),
+    sourcemaps(),
+    flow({pretty: true}), // setting {pretty: true} works around https://github.com/leebyron/rollup-plugin-flow/issues/5
     minifyStyleSpec(),
     json(),
     buble({transforms: {dangerousForOf: true}, objectAssign: "Object.assign"}),
-    unassert(),
+    production ? unassert() : false,
     resolve({
         browser: true,
         preferBuiltins: false
@@ -29,12 +31,9 @@ const plugins = [
         namedExports: {
             '@mapbox/gl-matrix': ['vec3', 'vec4', 'mat2', 'mat3', 'mat4']
         }
-    })
-]
-
-if (production) {
-    plugins.push(uglify());
-}
+    }),
+    production ? uglify() : false
+].filter(Boolean)
 
 const config = [{
     input: ['src/index.js', 'src/source/worker.js'],
@@ -54,7 +53,7 @@ const config = [{
         format: 'umd',
         sourcemap: production ? true : 'inline'
     },
-    plugins: production ? [] : [uglify()],
+    plugins: production ? [sourcemaps(), uglify()] : [sourcemaps()],
     intro: `
 let shared, worker, mapboxgl;
 function define(_, module) {
